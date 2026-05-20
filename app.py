@@ -25,7 +25,6 @@ RISK_INFO = {
 }
 
 NUMERIC_COLS = [
-    "bulan_jatuh_tempo",
     "angkatan",
     "jumlah_saudara",
     "prev_tagihan_count",
@@ -63,7 +62,6 @@ FORM_BASE_FIELDS = [
     "nominal_tagihan",
     "nominal_harus_bayar",
     "penghasilan_ortu_label",
-    "bulan_jatuh_tempo",
     "kps_status",
     "jumlah_saudara",
     "semester_tagihan",
@@ -87,7 +85,6 @@ FORM_HISTORY_FIELDS = {
 FORM_NUMERIC_CASTS = {
     "nominal_tagihan": float,
     "nominal_harus_bayar": float,
-    "bulan_jatuh_tempo": lambda value: int(float(value)),
     "jumlah_saudara": float,
     "angkatan": int,
 }
@@ -568,13 +565,13 @@ def prediction_form(options: dict, defaults: dict, hist: dict) -> tuple[bool, di
         with c1:
             penghasilan_ortu_label = opt("penghasilan_ortu_label", "Penghasilan Orang Tua")
         with c2:
-            bulan_jatuh_tempo = st.slider("Bulan Jatuh Tempo", 1, 12, int(values["bulan_jatuh_tempo"]),key=f"{key}_bulan_jatuh_tempo")
+            nominal_harus_bayar = rupiah_input("nominal_harus_bayar", values, key, "Nominal Harus Bayar")
 
         c1, c2 = st.columns(2)
         with c1:
             nominal_tagihan = rupiah_input("nominal_tagihan", values, key, "Nominal Tagihan")
         with c2:
-            nominal_harus_bayar = rupiah_input("nominal_harus_bayar", values, key, "Nominal Harus Bayar")
+            jumlah_saudara = num_input("jumlah_saudara", values, key, "Jumlah Saudara")
 
 
         st.markdown("##### Riwayat Pembayaran")
@@ -599,9 +596,9 @@ def prediction_form(options: dict, defaults: dict, hist: dict) -> tuple[bool, di
         "statusmhs_periode": statusmhs_periode,
         "kps_status": kps_status,
         "penghasilan_ortu_label": penghasilan_ortu_label,
-        "bulan_jatuh_tempo": bulan_jatuh_tempo,
         "nominal_tagihan": nominal_tagihan,
         "nominal_harus_bayar": nominal_harus_bayar,
+        "jumlah_saudara": int(jumlah_saudara),
         "prev_tagihan_count": int(prev_tagihan_count),
         "prev_late_count": int(prev_late_count),
         "prev_cicilan_count": int(prev_cicilan_count),
@@ -727,13 +724,13 @@ def prediction_page(model, ref: dict):
         prob = float(model.predict_proba(x)[0, 1])
         prediction_card(label, prob)
 
-        # Tampilkan 5 riwayat pembayaran terakhir bila tersedia.
+        # Tampilkan semua riwayat pembayaran sebelumnya bila tersedia.
         if hist["rows"] is not None:
-            with st.expander("Lihat 5 riwayat pembayaran terakhir"):
+            with st.expander("Lihat semua riwayat pembayaran sebelumnya"):
                 history_df = hist["rows"].sort_values(
                     ["tanggal_jatuh_tempo", "tagihan_id"],
                     ascending=[False, False],
-                ).head(5).copy()
+                ).copy()
                 history_df["nominal_tagihan"] = history_df["nominal_tagihan"].map(
                     lambda value: f"Rp {float(value):,.0f}".replace(",", ".")
                 )
