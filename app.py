@@ -25,7 +25,6 @@ RISK_INFO = {
 }
 
 NUMERIC_COLS = [
-    "angkatan",
     "jumlah_saudara",
     "prev_tagihan_count",
     "prev_late_count",
@@ -56,24 +55,21 @@ EDA_CORRELATION_FIELDS = [
 ]
 
 FORM_BASE_FIELDS = [
-    "jenis_pembayaran",
-    "nama_prodi",
     "statusmhs_periode",
-    "nominal_tagihan",
-    "nominal_harus_bayar",
-    "penghasilan_ortu_label",
-    "kps_status",
-    "jumlah_saudara",
     "semester_tagihan",
-    "jenis_semester",
-    "jalur_masuk",
+    "nama_prodi",
+    "tahun_ajaran",
     "subjalur_masuk",
-    "jenis_kelamin",
-    "pendidikan_ayah_label",
-    "pendidikan_ibu_label",
+    "jenis_pembayaran",
+    "nominal_harus_bayar",
+    "nominal_tagihan",
     "pekerjaan_ayah",
     "pekerjaan_ibu",
-    "angkatan",
+    "penghasilan_ortu_label",
+    "kps_status",
+    "pendidikan_ayah_label",
+    "pendidikan_ibu_label",
+    "jumlah_saudara",
 ]
 
 FORM_HISTORY_FIELDS = {
@@ -86,7 +82,6 @@ FORM_NUMERIC_CASTS = {
     "nominal_tagihan": float,
     "nominal_harus_bayar": float,
     "jumlah_saudara": float,
-    "angkatan": int,
 }
 
 def rupiah_input(field: str, values: dict, key: str, label: str) -> float:
@@ -112,7 +107,7 @@ def num_input(field: str, values: dict, key: str, label: str) -> int:
 
 # Load dataset dan bundle model yang dipakai di seluruh app.
 @st.cache_data
-def load_data():
+def load_data(model_mtime_ns: int, data_mtime_ns: int):
     bundle = joblib.load(MODEL_PATH)
     
     df = pd.read_csv(
@@ -365,7 +360,7 @@ def dashboard(ref: dict):
     st.title("Dashboard")
     st.caption("Ringkasan utama dataset, insight EDA, feature importance, dan evaluasi model dalam satu halaman.")
 
-    cards = st.columns(5, gap="small")
+    cards = st.columns(4, gap="small")
     with cards[0]:
         kpi_card("Total Dataset", f"{int(len(df)):,}".replace(",", "."), "&#9638;", "kpi-blue")
     with cards[1]:
@@ -373,8 +368,6 @@ def dashboard(ref: dict):
     with cards[2]:
         kpi_card("Rasio Keterlambatan", f"{df[TARGET_COL].mean():.2%}", "!", "kpi-red")
     with cards[3]:
-        kpi_card("Total Cicilan", f"{int(df['prev_cicilan_count'].max()):,}".replace(",", "."), "&#8635;", "kpi-amber")
-    with cards[4]:
         kpi_card("Range Data", f"{due_min:%Y}-{due_max:%Y}", "&#8981;", "kpi-slate")
 
     st.divider()
@@ -549,30 +542,53 @@ def prediction_form(options: dict, defaults: dict, hist: dict) -> tuple[bool, di
     with st.form(f"prediction_form_{key}"):
         st.subheader("Form Simulasi Tagihan")
 
-        c1, c2 = st.columns(2)
-        with c1:
-            jenis_pembayaran = opt("jenis_pembayaran", "Jenis Pembayaran")
-        with c2:
-            nama_prodi = opt("nama_prodi", "Program Studi")
-
+        st.markdown("##### Akademik dan Tagihan")
         c1, c2 = st.columns(2)
         with c1:
             statusmhs_periode = opt("statusmhs_periode", "Status Mahasiswa")
         with c2:
-            kps_status = opt("kps_status", "Penerima KPS/Bantuan")
+            semester_tagihan = opt("semester_tagihan", "Semester Tagihan")
 
         c1, c2 = st.columns(2)
         with c1:
-            penghasilan_ortu_label = opt("penghasilan_ortu_label", "Penghasilan Orang Tua")
+            nama_prodi = opt("nama_prodi", "Program Studi")
         with c2:
+            tahun_ajaran = opt("tahun_ajaran", "Tahun Ajaran")
+
+        c1, c2 = st.columns(2)
+        with c1:
+            subjalur_masuk = opt("subjalur_masuk", "Subjalur Masuk")
+        with c2:
+            jenis_pembayaran = opt("jenis_pembayaran", "Jenis Pembayaran")
+
+        c1, c2 = st.columns(2)
+        with c1:
             nominal_harus_bayar = rupiah_input("nominal_harus_bayar", values, key, "Nominal Harus Bayar")
-
-        c1, c2 = st.columns(2)
-        with c1:
-            nominal_tagihan = rupiah_input("nominal_tagihan", values, key, "Nominal Tagihan")
         with c2:
-            jumlah_saudara = num_input("jumlah_saudara", values, key, "Jumlah Saudara")
+            nominal_tagihan = rupiah_input("nominal_tagihan", values, key, "Nominal Tagihan")
 
+        with st.expander("Kondisi Keluarga"):
+            c1, c2 = st.columns(2)
+            with c1:
+                pekerjaan_ayah = opt("pekerjaan_ayah", "Pekerjaan Ayah")
+            with c2:
+                pekerjaan_ibu = opt("pekerjaan_ibu", "Pekerjaan Ibu")
+
+            c1, c2 = st.columns(2)
+            with c1:
+                penghasilan_ortu_label = opt("penghasilan_ortu_label", "Penghasilan Orang Tua")
+            with c2:
+                kps_status = opt("kps_status", "Penerima KPS/Bantuan")
+
+            c1, c2 = st.columns(2)
+            with c1:
+                pendidikan_ayah_label = opt("pendidikan_ayah_label", "Pendidikan Ayah")
+            with c2:
+                pendidikan_ibu_label = opt("pendidikan_ibu_label", "Pendidikan Ibu")
+
+            c1, c2 = st.columns(2)
+            with c1:
+                jumlah_saudara = num_input("jumlah_saudara", values, key, "Jumlah Saudara")
 
         st.markdown("##### Riwayat Pembayaran")
 
@@ -599,6 +615,13 @@ def prediction_form(options: dict, defaults: dict, hist: dict) -> tuple[bool, di
         "nominal_tagihan": nominal_tagihan,
         "nominal_harus_bayar": nominal_harus_bayar,
         "jumlah_saudara": int(jumlah_saudara),
+        "tahun_ajaran": tahun_ajaran,
+        "semester_tagihan": semester_tagihan,
+        "subjalur_masuk": subjalur_masuk,
+        "pendidikan_ayah_label": pendidikan_ayah_label,
+        "pendidikan_ibu_label": pendidikan_ibu_label,
+        "pekerjaan_ayah": pekerjaan_ayah,
+        "pekerjaan_ibu": pekerjaan_ibu,
         "prev_tagihan_count": int(prev_tagihan_count),
         "prev_late_count": int(prev_late_count),
         "prev_cicilan_count": int(prev_cicilan_count),
@@ -678,15 +701,20 @@ def prediction_page(model, ref: dict):
     if not selected_student:
         hist = {"rows": None, "latest": None, "count": None, "late": None, "cicilan": None, "ratio": None, "key": "manual"}
     else:
-        rows = df[df["mahasiswa"] == selected_student].sort_values("tanggal_jatuh_tempo").copy()
-        count = int(len(rows))
-        late = int(rows[TARGET_COL].sum())
+        rows = df[df["mahasiswa"] == selected_student].sort_values(
+            ["tanggal_jatuh_tempo", "tagihan_id"]
+        ).copy()
+        latest = rows.iloc[-1].copy() if len(rows) else None
+        previous_rows = rows.iloc[:-1].copy() if len(rows) > 1 else rows.iloc[0:0].copy()
+        count = int(latest["prev_tagihan_count"]) if latest is not None and pd.notna(latest["prev_tagihan_count"]) else int(len(previous_rows))
+        late = int(latest["prev_late_count"]) if latest is not None and pd.notna(latest["prev_late_count"]) else int(previous_rows[TARGET_COL].sum())
+        cicilan = int(latest["prev_cicilan_count"]) if latest is not None and pd.notna(latest["prev_cicilan_count"]) else 0
         hist = {
-            "rows": rows,
-            "latest": rows.iloc[-1].copy() if count else None,
+            "rows": previous_rows,
+            "latest": latest,
             "count": count,
             "late": late,
-            "cicilan": int(rows["prev_cicilan_count"].max()) if count else 0,
+            "cicilan": cicilan,
             "ratio": late / count if count else 0.0,
             "key": f"student_{selected_student.replace(' ', '_')}",
         }
@@ -725,7 +753,7 @@ def prediction_page(model, ref: dict):
         prediction_card(label, prob)
 
         # Tampilkan semua riwayat pembayaran sebelumnya bila tersedia.
-        if hist["rows"] is not None:
+        if hist["rows"] is not None and not hist["rows"].empty:
             with st.expander("Lihat semua riwayat pembayaran sebelumnya"):
                 history_df = hist["rows"].sort_values(
                     ["tanggal_jatuh_tempo", "tagihan_id"],
@@ -754,7 +782,7 @@ def main():
     )
     st.markdown(f"<style>{STYLE_PATH.read_text(encoding='utf-8')}</style>", unsafe_allow_html=True)
 
-    ref = load_data()
+    ref = load_data(MODEL_PATH.stat().st_mtime_ns, DATA_PATH.stat().st_mtime_ns)
     page = sidebar(ref)
 
     if page == "Dashboard":
