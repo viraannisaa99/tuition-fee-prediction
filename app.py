@@ -23,6 +23,7 @@ RISK_INFO = {
     "medium": {"class": "risk-medium", "label": "Sedang"},
     "high": {"class": "risk-high", "label": "Tinggi"},
 }
+DEFAULT_RISK_THRESHOLDS = {"low": 0.30, "medium": 0.60}
 
 NUMERIC_COLS = [
     "jumlah_saudara",
@@ -136,6 +137,7 @@ def load_data(model_mtime_ns: int, data_mtime_ns: int):
         "options": bundle["options"],
         "prodi_lookup": bundle["prodi_lookup"],
         "notebook_artifacts": bundle["notebook_artifacts"],
+        "risk_thresholds": bundle.get("risk_thresholds", DEFAULT_RISK_THRESHOLDS),
     }
 
 def chart_theme() -> dict:
@@ -490,9 +492,9 @@ def dashboard(ref: dict):
             ax=ax,
         )
 
-        ax.set_title(best_model_name, color="#f8fafc", pad=8, fontsize=12)
-        ax.tick_params(axis="x", colors="#e2e8f0", labelsize=9)
-        ax.tick_params(axis="y", colors="#e2e8f0", labelsize=9)
+        ax.set_title(best_model_name, color=palette["text"], pad=8, fontsize=12)
+        ax.tick_params(axis="x", colors=palette["muted"], labelsize=9)
+        ax.tick_params(axis="y", colors=palette["muted"], labelsize=9)
 
         ax.set_xlabel("")
         ax.set_ylabel("")
@@ -653,9 +655,26 @@ def model_input(ref: dict, values: dict) -> pd.DataFrame:
 
     return pd.DataFrame([{col: row[col] for col in ref["features"]}])
 
+def normalize_risk_thresholds(thresholds: dict | None) -> tuple[float, float]:
+    risk_thresholds = thresholds or {}
+
+    try:
+        low = float(risk_thresholds.get("low", DEFAULT_RISK_THRESHOLDS["low"]))
+    except (TypeError, ValueError):
+        low = DEFAULT_RISK_THRESHOLDS["low"]
+
+    try:
+        medium = float(risk_thresholds.get("medium", DEFAULT_RISK_THRESHOLDS["medium"]))
+    except (TypeError, ValueError):
+        medium = DEFAULT_RISK_THRESHOLDS["medium"]
+
+    medium = max(low, medium)
+    return low, medium
+
 # Card Prediksi
-def prediction_card(label: int, prob: float):
-    risk_key = "low" if prob <= 0.30 else "medium" if prob <= 0.60 else "high"
+def prediction_card(label: int, prob: float, thresholds: dict | None = None):
+    low_threshold, medium_threshold = normalize_risk_thresholds(thresholds)
+    risk_key = "low" if prob <= low_threshold else "medium" if prob <= medium_threshold else "high"
     risk = RISK_INFO[risk_key]
     status = "Terlambat" if label == 1 else "Tepat Waktu"
     icon = "&times;" if label == 1 else "&#10003;"
@@ -750,7 +769,7 @@ def prediction_page(model, ref: dict):
         x = model_input(ref, values)
         label = int(model.predict(x)[0])
         prob = float(model.predict_proba(x)[0, 1])
-        prediction_card(label, prob)
+        prediction_card(label, prob, ref.get("risk_thresholds"))
 
         # Tampilkan semua riwayat pembayaran sebelumnya bila tersedia.
         if hist["rows"] is not None and not hist["rows"].empty:

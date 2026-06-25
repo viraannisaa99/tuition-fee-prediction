@@ -2,6 +2,12 @@
 
 Aplikasi Streamlit untuk analisis dan prediksi risiko keterlambatan pembayaran biaya pendidikan mahasiswa menggunakan model machine learning.
 
+## Source of Truth
+
+- Aplikasi utama ada di folder `VAS_Streamlit/`
+- Notebook utama untuk training dan evaluasi ada di `VAS_Streamlit/VAS_Tuition Fee Prediction.ipynb`
+- Dependency utama ada di `VAS_Streamlit/requirements.txt`
+
 ## Fitur
 
 - Dashboard ringkasan dataset
@@ -31,6 +37,8 @@ Aplikasi Streamlit untuk analisis dan prediksi risiko keterlambatan pembayaran b
 ```bash
 pip install -r requirements.txt
 ```
+
+Jika menjalankan setup dari root project, `requirements.txt` di root diarahkan ke `VAS_Streamlit/requirements.txt`.
 
 3. Jalankan aplikasi:
 
